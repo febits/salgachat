@@ -3,6 +3,8 @@
 # Edit at https://www.toptal.com/developers/gitignore?templates=c,vim
 
 compile_commands.json
+client
+server
 build
 .cache
 
