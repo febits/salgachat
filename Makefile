@@ -18,4 +18,4 @@ $(SERVER): $(SRC_SERVER)
 	$(CC) $(CFLAGS) $^ -o $@
 
 clean:
-	rm -rf build
+	rm -rf $(CLIENT) $(SERVER)

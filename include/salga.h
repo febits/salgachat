@@ -4,6 +4,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define SALGABANNER                                                            \
+  " __                              \n"                                        \
+  "(_   _. |  _   _.  _ |_   _. _|_ \n"                                        \
+  "__) (_| | (_| (_| (_ | | (_|  |_ \n"                                        \
+  "           _|                    \n"                                        \
+  "\n"
+
 #define error(fmt, ...)                                                        \
   fprintf(stderr, fmt, ##__VA_ARGS__);                                         \
   exit(EXIT_SUCCESS);
