@@ -1,19 +1,28 @@
 #include <errno.h>
 #include <netdb.h>
 #include <netinet/in.h>
-#include <unistd.h>
+#include <pthread.h>
+#include <signal.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <unistd.h>
 
 #include "salga.h"
 #include "types.h"
 
-i32 sockfd = -1;
+typedef struct {
+  salgachat_pkt *pkt;
+  i32 sockfd;
+} thread_data;
 
-void remove_newline(char *s) {
-  s[strlen(s) - 1] = '\0';
-}
+i32 sockfd = -1;
+volatile sig_atomic_t finish = false;
+
+void client_sigint_handler(i32 sig) { finish = true; }
+
+void remove_newline(char *s) { s[strlen(s) - 1] = '\0'; }
 
 i32 getipbyname(const char *name, u32 *dst) {
   struct addrinfo hint = {0};
@@ -35,7 +44,20 @@ i32 getipbyname(const char *name, u32 *dst) {
   return 0;
 }
 
+void *send_handler(void *arg) {
+  thread_data *data = (thread_data *)arg;
+
+  pthread_exit(NULL);
+}
+
+void *recv_handler(void *arg) {
+  i32 sockfd = *((int *)arg);
+
+  pthread_exit(NULL);
+}
+
 int main(int argc, char **argv) {
+  signal(SIGINT, client_sigint_handler);
 
   if (argc != 3) {
     usage("client: Usage: %s [host] [port]\n", argv[0]);
@@ -84,11 +106,27 @@ int main(int argc, char **argv) {
   read(sockfd, &srv_pkt, sizeof(salgachat_pkt));
 
   if (srv_pkt.flags & S_UNAVAILABLE) {
-    error("client: error: max clients has been reached\n");
+    error("client: error: Max clients has been reached\n");
   }
 
-  printf("connected\n");
+  pthread_t tid1, tid2;
+  thread_data data = {&pkt, sockfd};
 
-  return EXIT_SUCCESS;
+  i32 res; 
+  if ((res = pthread_create(&tid1, NULL, send_handler, (void *)&data))) {
+    error("client: error: %s\n", strerror(res));
+  }
+
+  if ((res = pthread_create(&tid2, NULL, recv_handler, (void *)&sockfd))) {
+    error("client: error: %s\n", strerror(res));
+  }
+
+  while (!finish) {
+    usleep(100000);
+  }
+
+  printf("\nClient finished...\n");
+
+  close(sockfd);
+  return EXIT_FAILURE;
 }
-  

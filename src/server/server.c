@@ -1,6 +1,7 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <netinet/in.h>
+#include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,9 +15,22 @@
 
 #define CLIENTSMAX 5
 
+typedef struct {
+  u8 id;
+  i32 sockfd;
+} thread_data;
+
 u8 clients_counter = 0;
 
+void server_sigint_handler(i32 sig) {
+  printf("\nServer finished...\n");
+  exit(EXIT_FAILURE);
+}
+
+void *client_handler(void *arg) {}
+
 int main(int argc, char **argv) {
+  signal(SIGINT, server_sigint_handler);
   loguva_add_stream(stdout);
 
   if (argc != 2) {
@@ -89,9 +103,9 @@ int main(int argc, char **argv) {
       loguva(INFO, "[+] %s has connected (connection from %s)\n", pkt.user,
              strip);
     }
+  
+    // add_client
 
-    printf("connected - %u\n", clients_counter++);
-    close(clientfd);
   }
 
   close(sockfd);
