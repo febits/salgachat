@@ -1,6 +1,7 @@
 #include <errno.h>
 #include <netdb.h>
 #include <netinet/in.h>
+#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -9,6 +10,10 @@
 #include "types.h"
 
 i32 sockfd = -1;
+
+void remove_newline(char *s) {
+  s[strlen(s) - 1] = '\0';
+}
 
 i32 getipbyname(const char *name, u32 *dst) {
   struct addrinfo hint = {0};
@@ -55,11 +60,35 @@ int main(int argc, char **argv) {
   srvaddr.sin_addr.s_addr = ip;
   srvaddr.sin_port = htons(port);
 
+  printf(SALGABANNER);
+
+  salgachat_pkt pkt = {0};
+  printf("Enter a user: ");
+  fgets(pkt.user, USERSIZE, stdin);
+
+  if (pkt.user[0] == '\n') {
+    error("client: error: Name must be specified\n");
+  }
+
+  remove_newline(pkt.user);
+  pkt.flags |= S_CONNECTING;
+
   if (connect(sockfd, (struct sockaddr *)&srvaddr, sizeof(srvaddr)) == -1) {
     error("client: error: %s\n", strerror(errno));
+  }
+
+  write(sockfd, &pkt, sizeof(salgachat_pkt));
+  pkt.flags &= ~S_CONNECTING;
+
+  salgachat_pkt srv_pkt = {0};
+  read(sockfd, &srv_pkt, sizeof(salgachat_pkt));
+
+  if (srv_pkt.flags & S_UNAVAILABLE) {
+    error("client: error: max clients has been reached\n");
   }
 
   printf("connected\n");
 
   return EXIT_SUCCESS;
 }
+  
