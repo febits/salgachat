@@ -20,8 +20,7 @@ typedef struct {
 i32 sockfd = -1;
 volatile sig_atomic_t finish = false;
 
-void client_sigint_handler(i32 sig) { finish = true; }
-
+void client_sigint_handler(i32 __attribute__((unused)) sig) { finish = true; }
 void remove_newline(char *s) { s[strlen(s) - 1] = '\0'; }
 
 i32 getipbyname(const char *name, u32 *dst) {
@@ -112,12 +111,12 @@ int main(int argc, char **argv) {
   pthread_t tid1, tid2;
   thread_data data = {&pkt, sockfd};
 
-  i32 res; 
-  if ((res = pthread_create(&tid1, NULL, send_handler, (void *)&data))) {
+  i32 res;
+  if ((res = pthread_create(&tid1, NULL, send_handler, (void *)&data)) != 0) {
     error("client: error: %s\n", strerror(res));
   }
 
-  if ((res = pthread_create(&tid2, NULL, recv_handler, (void *)&sockfd))) {
+  if ((res = pthread_create(&tid2, NULL, recv_handler, (void *)&sockfd)) != 0) {
     error("client: error: %s\n", strerror(res));
   }
 

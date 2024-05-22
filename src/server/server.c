@@ -1,6 +1,7 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <netinet/in.h>
+#include <pthread.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -14,20 +15,75 @@
 #include "types.h"
 
 #define CLIENTSMAX 5
+#define NOUSER (-1)
 
 typedef struct {
   u8 id;
   i32 sockfd;
 } thread_data;
 
+pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+
+i32 clients[CLIENTSMAX] = {NOUSER};
 u8 clients_counter = 0;
 
-void server_sigint_handler(i32 sig) {
+void server_sigint_handler(i32 __attribute__((unused)) sig) {
   printf("\nServer finished...\n");
   exit(EXIT_FAILURE);
 }
 
-void *client_handler(void *arg) {}
+void init_clients_list(void) {
+  pthread_mutex_lock(&lock);
+
+  for (u8 i = 0; i < CLIENTSMAX; i++) {
+    clients[i] = NOUSER;
+  }
+
+  pthread_mutex_unlock(&lock);
+}
+
+u8 add_client(i32 sockfd) {
+  pthread_mutex_lock(&lock);
+
+  u8 i;
+  for (i = 0; i < CLIENTSMAX; i++) {
+    if (clients[i] == NOUSER) {
+      clients[i] = sockfd;
+      break;
+    }
+  }
+
+  pthread_mutex_unlock(&lock);
+  return i;
+}
+
+void remove_client(u8 id) {
+  pthread_mutex_lock(&lock);
+  clients[id] = NOUSER;
+  pthread_mutex_unlock(&lock);
+}
+
+void *client_handler(void *arg) {
+  thread_data *data = (thread_data *)arg;
+
+  salgachat_pkt pkt = {0};
+  clients_counter++;
+
+  printf("ID: %u\nSock: %u\nCounter: %u\n", data->id, data->sockfd,
+         clients_counter);
+
+  while (true) {
+    
+  }
+
+  printf("chegando aqui\n");
+
+  close(data->sockfd);
+  free(data);
+
+  clients_counter--;
+  pthread_exit(NULL);
+}
 
 int main(int argc, char **argv) {
   signal(SIGINT, server_sigint_handler);
@@ -69,12 +125,14 @@ int main(int argc, char **argv) {
   struct sockaddr_in cltaddr = {0};
   socklen_t cltsize = sizeof(cltaddr);
 
+  init_clients_list();
+
   while (true) {
     salgachat_pkt pkt = {0};
 
     i32 clientfd = accept(sockfd, (struct sockaddr *)&cltaddr, &cltsize);
     if (clientfd == -1) {
-      loguva(ERROR, "server: accept error: %s\n", strerror(errno));
+      loguva(ERROR, "server: accept error: %s", strerror(errno));
       continue;
     }
 
@@ -84,8 +142,8 @@ int main(int argc, char **argv) {
 
       inet_ntop(AF_INET, &cltaddr.sin_addr, strip, INET_ADDRSTRLEN);
       loguva(INFO,
-             "[<>] Connection rejected! Max clients has been reached "
-             "(connection from %s)\n",
+             "[-] Connection rejected! Max clients has been reached "
+             "(connection from %s)",
              strip);
       write(clientfd, &srv_pkt, sizeof(salgachat_pkt));
 
@@ -100,12 +158,31 @@ int main(int argc, char **argv) {
 
     if (pkt.flags & S_CONNECTING) {
       inet_ntop(AF_INET, &cltaddr.sin_addr, strip, INET_ADDRSTRLEN);
-      loguva(INFO, "[+] %s has connected (connection from %s)\n", pkt.user,
+      loguva(INFO, "[+] %s has connected (connection from %s)", pkt.user,
              strip);
     }
-  
-    // add_client
 
+    u8 id = add_client(clientfd);
+
+    pthread_t tid;
+    thread_data *data = malloc(sizeof(thread_data));
+    if (data == NULL) {
+      loguva(ERROR, "server: error: Malloc error");
+      remove_client(id);
+      close(clientfd);
+      continue;
+    }
+
+    data->sockfd = clientfd;
+    data->id = id;
+
+    i32 res;
+    if ((res = pthread_create(&tid, NULL, client_handler, (void *)data)) != 0) {
+      loguva(ERROR, "server: error: %s", strerror(res));
+      remove_client(id);
+      close(clientfd);
+      continue;
+    }
   }
 
   close(sockfd);
