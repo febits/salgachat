@@ -4,8 +4,8 @@ CFLAGS=-Wall -Wextra -pedantic -Iinclude
 SRC_CLIENT=$(wildcard src/client/*.c src/core/*.c)
 SRC_SERVER=$(wildcard src/server/*.c src/core/*.c)
 
-CLIENT=client
-SERVER=server
+CLIENT=client-salga
+SERVER=server-salga
 
 .PHONY: all clean always
 
