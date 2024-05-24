@@ -17,9 +17,13 @@
 #define CLIENTSMAX 5
 #define NOUSER (-1)
 
+typedef enum { CONNECTING, DISCONNECTING } alert_type;
+
 typedef struct {
   u8 id;
   i32 sockfd;
+  char strip[INET_ADDRSTRLEN];
+  char user[USERSIZE + 1];
 } thread_data;
 
 pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
@@ -63,25 +67,74 @@ void remove_client(u8 id) {
   pthread_mutex_unlock(&lock);
 }
 
+void send_message_to_sockfd(salgachat_pkt *pkt, i32 sockfd) {
+  pthread_mutex_lock(&lock);
+
+  for (u8 i = 0; i < CLIENTSMAX; i++) {
+    if (clients[i] != NOUSER && clients[i] != sockfd) {
+      write(clients[i], pkt, sizeof(salgachat_pkt));
+    }
+  }
+
+  pthread_mutex_unlock(&lock);
+}
+
+void alert_all_clients(const char *user, i32 sockfd, alert_type alert) {
+  salgachat_pkt srv_pkt = {0};
+
+  strncpy(srv_pkt.user, "Server", USERSIZE);
+  snprintf(srv_pkt.msg, MSGSIZE,
+           alert == CONNECTING ? "%s has connected" : "%s has disconnected",
+           user);
+  send_message_to_sockfd(&srv_pkt, sockfd);
+}
+
 void *client_handler(void *arg) {
   thread_data *data = (thread_data *)arg;
 
   salgachat_pkt pkt = {0};
   clients_counter++;
 
+  loguva(INFO, "[+] %s has connected (%s) => (%u/%u)", data->user, data->strip,
+         clients_counter, CLIENTSMAX);
   printf("ID: %u\nSock: %u\nCounter: %u\n", data->id, data->sockfd,
          clients_counter);
 
   while (true) {
-    sleep(1);
+    read(data->sockfd, &pkt, sizeof(salgachat_pkt));
+
+    if (strlen(pkt.msg) <= 0) {
+      continue;
+    }
+
+    if (pkt.msg[0] == PREFIX_CMD) {
+      salgachat_pkt srv_pkt = {0};
+      strncpy(srv_pkt.user, "Server", USERSIZE);
+
+      if (strncmp(pkt.msg, EXIT_CMD, strlen(pkt.msg)) == 0) {
+        alert_all_clients(pkt.user, data->sockfd, DISCONNECTING);
+        remove_client(data->id);
+        break;
+      } else if (strncmp(pkt.msg, LIST_CMD, strlen(pkt.msg)) == 0) {
+        snprintf(srv_pkt.msg, MSGSIZE, "%u/%u clients connected now.",
+                 clients_counter, CLIENTSMAX);
+        write(data->sockfd, &srv_pkt, sizeof(salgachat_pkt));
+      }
+
+      continue;
+    }
+
+    loguva(INFO, "[+] %s sent '%s'", pkt.user, pkt.msg);
+    send_message_to_sockfd(&pkt, data->sockfd);
   }
 
-  printf("chegando aqui\n");
-
   close(data->sockfd);
-  free(data);
 
   clients_counter--;
+  loguva(INFO, "[-] %s has disconnected (%s) => (%u/%u)", data->user,
+         data->strip, clients_counter, CLIENTSMAX);
+
+  free(data);
   pthread_exit(NULL);
 }
 
@@ -156,12 +209,6 @@ int main(int argc, char **argv) {
     write(clientfd, &srv_pkt, sizeof(salgachat_pkt));
     read(clientfd, &pkt, sizeof(salgachat_pkt));
 
-    if (pkt.flags & S_CONNECTING) {
-      inet_ntop(AF_INET, &cltaddr.sin_addr, strip, INET_ADDRSTRLEN);
-      loguva(INFO, "[+] %s has connected (connection from %s)", pkt.user,
-             strip);
-    }
-
     u8 id = add_client(clientfd);
 
     pthread_t tid;
@@ -173,6 +220,8 @@ int main(int argc, char **argv) {
       continue;
     }
 
+    inet_ntop(AF_INET, &cltaddr.sin_addr, data->strip, INET_ADDRSTRLEN);
+    strncpy(data->user, pkt.user, USERSIZE);
     data->sockfd = clientfd;
     data->id = id;
 
@@ -181,7 +230,12 @@ int main(int argc, char **argv) {
       loguva(ERROR, "server: error: %s", strerror(res));
       remove_client(id);
       close(clientfd);
+      free(data);
       continue;
+    }
+
+    if (pkt.flags & S_CONNECTING) {
+      alert_all_clients(pkt.user, clientfd, CONNECTING);
     }
   }
 

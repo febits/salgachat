@@ -29,8 +29,17 @@ message *head = NULL;
 char user[USERSIZE + 1];
 char input[MSGSIZE + 1];
 
-void client_sigint_handler(i32 __attribute__((unused)) sig) { finish = true; }
 void remove_newline(char *s) { s[strlen(s) - 1] = '\0'; }
+
+void client_sigint_handler(i32 __attribute__((unused)) sig) {
+  salgachat_pkt pkt = {0};
+
+  strncpy(pkt.user, user, USERSIZE);
+  strncpy(pkt.msg, EXIT_CMD, MSGSIZE);
+  write(sockfd, &pkt, sizeof(salgachat_pkt));
+
+  finish = true;
+}
 
 i32 getipbyname(const char *name, u32 *dst) {
   struct addrinfo hint = {0};
@@ -55,7 +64,7 @@ i32 getipbyname(const char *name, u32 *dst) {
 void *send_handler(void *arg) {
   thread_data *data = (thread_data *)arg;
 
-  while (true) {
+  while (!finish) {
     display_messages(head);
     printf("\nType: > ");
     fflush(stdout);
@@ -75,7 +84,7 @@ void *recv_handler(void *arg) {
 
   salgachat_pkt pkt = {0};
 
-  while (true) {
+  while (!finish) {
     i64 recved = read(sockfd, &pkt, sizeof(salgachat_pkt));
 
     if (recved <= 0) {

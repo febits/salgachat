@@ -19,6 +19,10 @@
 
 #define usage(fmt, ...) error(fmt, ##__VA_ARGS__)
 
+#define PREFIX_CMD '/'
+#define LIST_CMD "/list"
+#define EXIT_CMD "/exit"
+
 #define USERSIZE 16
 #define MSGSIZE 1024
 
