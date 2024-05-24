@@ -73,7 +73,7 @@ void *client_handler(void *arg) {
          clients_counter);
 
   while (true) {
-    
+    sleep(1);
   }
 
   printf("chegando aqui\n");
