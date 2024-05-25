@@ -12,6 +12,7 @@
 #include <unistd.h>
 
 #include "input.h"
+#include "color.h"
 #include "linkedlist.h"
 #include "salga.h"
 #include "types.h"
@@ -137,7 +138,8 @@ int main(int argc, char **argv) {
   srvaddr.sin_addr.s_addr = ip;
   srvaddr.sin_port = htons(port);
 
-  printf(SALGABANNER);
+  struct style sty = {WHITE, DEFAULT(BG), BOLD};
+  printfc(&sty, SALGABANNER);
 
   salgachat_pkt pkt = {0};
   printf("Enter a user: ");

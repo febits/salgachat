@@ -2,12 +2,13 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "color.h"
 #include "linkedlist.h"
 #include "salga.h"
 
 #define MAX_PRINTABLE_MSG 100
 
-pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 u8 message_counter = 0;
 
 void add_message(message **head, const char *user, const char *msg) {
@@ -55,8 +56,14 @@ void display_messages(message **head) {
 
   printf("\x1b[H\x1b[J");
   message *curr = *head;
+  struct style s_clients = {WHITE, DEFAULT(BG), DIM | BOLD};
+  struct style s_server = {BRIGHT_WHITE, BRIGHT_RED, DIM | BOLD};
+
   for (; curr; curr = curr->next) {
-    printf("[%s]: %s\n", curr->user, curr->msg);
+    printfc(strncmp(curr->user, "Server", strlen(curr->user)) == 0 ? &s_server
+                                                                   : &s_clients,
+            "[%s]", curr->user);
+    printf(": %s\n", curr->msg);
   }
 
   pthread_mutex_unlock(&lock);

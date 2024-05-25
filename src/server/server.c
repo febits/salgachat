@@ -11,6 +11,7 @@
 #include <unistd.h>
 
 #include "loguva.h"
+#include "color.h"
 #include "salga.h"
 #include "types.h"
 
@@ -173,7 +174,11 @@ int main(int argc, char **argv) {
   char strip[INET_ADDRSTRLEN] = {0};
   inet_ntop(AF_INET, &srvaddr.sin_addr, strip, INET_ADDRSTRLEN);
 
-  printf(SALGABANNER "[<>] Listening on %s:%u\n\n", strip, port);
+  struct style sty = {WHITE, DEFAULT(BG), BOLD};
+  printfc(&sty, SALGABANNER);
+  printf("[<>] Listening on ");
+  sty.effects = DIM;
+  printfc(&sty, "%s:%u\n\n", strip, port);
 
   struct sockaddr_in cltaddr = {0};
   socklen_t cltsize = sizeof(cltaddr);
