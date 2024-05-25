@@ -11,6 +11,6 @@ typedef struct message {
 } message;
 
 void add_message(message **head, const char *user, const char *msg);
-void display_messages(message *head);
+void display_messages(message **head);
 
 #endif

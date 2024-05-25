@@ -11,8 +11,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "linkedlist.h"
 #include "input.h"
+#include "linkedlist.h"
 #include "salga.h"
 #include "types.h"
 
@@ -65,13 +65,13 @@ void *send_handler(void *arg) {
   thread_data *data = (thread_data *)arg;
 
   while (!finish) {
-    display_messages(head);
+    display_messages(&head);
     printf("\nType: > %s", input);
     fflush(stdout);
 
     // fgets(data->pkt->msg, MSGSIZE, stdin);
     // remove_newline(data->pkt->msg);
-    
+
     if (!noncanon_input(input, MSGSIZE)) {
       memset(input, 0, MSGSIZE);
       continue;
@@ -102,7 +102,7 @@ void *recv_handler(void *arg) {
     }
 
     add_message(&head, pkt.user, pkt.msg);
-    display_messages(head);
+    display_messages(&head);
 
     printf("\nType: > %s", input);
     fflush(stdout);
