@@ -12,7 +12,7 @@
 #include <unistd.h>
 
 #include "linkedlist.h"
-#include "loguva.h"
+#include "input.h"
 #include "salga.h"
 #include "types.h"
 
@@ -66,11 +66,19 @@ void *send_handler(void *arg) {
 
   while (!finish) {
     display_messages(head);
-    printf("\nType: > ");
+    printf("\nType: > %s", input);
     fflush(stdout);
 
-    fgets(data->pkt->msg, MSGSIZE, stdin);
-    remove_newline(data->pkt->msg);
+    // fgets(data->pkt->msg, MSGSIZE, stdin);
+    // remove_newline(data->pkt->msg);
+    
+    if (!noncanon_input(input, MSGSIZE)) {
+      memset(input, 0, MSGSIZE);
+      continue;
+    }
+
+    strncpy(data->pkt->msg, input, MSGSIZE);
+    memset(input, 0, MSGSIZE);
 
     write(data->sockfd, data->pkt, sizeof(salgachat_pkt));
     add_message(&head, data->pkt->user, data->pkt->msg);
@@ -96,7 +104,7 @@ void *recv_handler(void *arg) {
     add_message(&head, pkt.user, pkt.msg);
     display_messages(head);
 
-    printf("\nType: > ");
+    printf("\nType: > %s", input);
     fflush(stdout);
   }
 
