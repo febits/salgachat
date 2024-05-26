@@ -98,8 +98,6 @@ void *client_handler(void *arg) {
 
   loguva(INFO, "[+] %s has connected (%s) => (%u/%u)", data->user, data->strip,
          clients_counter, CLIENTSMAX);
-  printf("ID: %u\nSock: %u\nCounter: %u\n", data->id, data->sockfd,
-         clients_counter);
 
   while (true) {
     read(data->sockfd, &pkt, sizeof(salgachat_pkt));

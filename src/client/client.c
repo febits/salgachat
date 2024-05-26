@@ -17,6 +17,8 @@
 #include "salga.h"
 #include "types.h"
 
+#define AVOID_BUSY_WAIT 100000
+
 typedef struct {
   salgachat_pkt *pkt;
   i32 sockfd;
@@ -181,7 +183,7 @@ int main(int argc, char **argv) {
   }
 
   while (!finish) {
-    usleep(100000);
+    usleep(AVOID_BUSY_WAIT);
   }
 
   pthread_cancel(tid1);
