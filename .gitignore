@@ -3,6 +3,7 @@
 # Edit at https://www.toptal.com/developers/gitignore?templates=c,vim
 
 compile_commands.json
+.clang-format
 client-salga
 server-salga
 build
