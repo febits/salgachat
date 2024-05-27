@@ -19,18 +19,18 @@
 
 #define usage(fmt, ...) error(fmt, ##__VA_ARGS__)
 
-#define PREFIX_CMD '/'
-#define LIST_CMD "/list"
-#define EXIT_CMD "/exit"
-
 #define USERSIZE 16
 #define MSGSIZE 1024
 
-#define S_CONNECTING (1 << 0)
-#define S_UNAVAILABLE (1 << 1)
+#define SF_CONNECTING (1 << 0)
+#define SF_UNAVAILABLE (1 << 1)
+
+#define SC_LISTCMD (1 << 0)
+#define SC_EXITCMD (1 << 1)
 
 typedef struct {
   u8 flags;
+  u8 commands;
   char user[USERSIZE + 1];
   char msg[MSGSIZE + 1];
 } __attribute__((packed)) salgachat_pkt;

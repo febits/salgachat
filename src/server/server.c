@@ -10,8 +10,8 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#include "loguva.h"
 #include "color.h"
+#include "loguva.h"
 #include "salga.h"
 #include "types.h"
 
@@ -102,22 +102,25 @@ void *client_handler(void *arg) {
   while (true) {
     read(data->sockfd, &pkt, sizeof(salgachat_pkt));
 
-    if (strlen(pkt.msg) <= 0) {
+    if (strlen(pkt.msg) <= 0 && pkt.commands == 0) {
       continue;
     }
 
-    if (pkt.msg[0] == PREFIX_CMD) {
+    if (pkt.commands != 0) {
       salgachat_pkt srv_pkt = {0};
       strncpy(srv_pkt.user, "Server", USERSIZE);
 
-      if (strncmp(pkt.msg, EXIT_CMD, strlen(pkt.msg)) == 0) {
-        alert_all_clients(pkt.user, data->sockfd, DISCONNECTING);
-        remove_client(data->id);
-        break;
-      } else if (strncmp(pkt.msg, LIST_CMD, strlen(pkt.msg)) == 0) {
+      if (pkt.commands & SC_LISTCMD) {
         snprintf(srv_pkt.msg, MSGSIZE, "%u/%u clients connected now.",
                  clients_counter, CLIENTSMAX);
         write(data->sockfd, &srv_pkt, sizeof(salgachat_pkt));
+
+        loguva(INFO, "[..] %s sent a command (%s) => LIST_COMMAND", data->user,
+               data->strip);
+      } else if (pkt.commands & SC_EXITCMD) {
+        alert_all_clients(pkt.user, data->sockfd, DISCONNECTING);
+        remove_client(data->id);
+        break;
       }
 
       continue;
@@ -130,6 +133,8 @@ void *client_handler(void *arg) {
   close(data->sockfd);
 
   clients_counter--;
+  loguva(INFO, "[..] %s sent a command (%s) => EXIT_COMMAND", data->user,
+         data->strip);
   loguva(INFO, "[-] %s has disconnected (%s) => (%u/%u)", data->user,
          data->strip, clients_counter, CLIENTSMAX);
 
@@ -194,7 +199,7 @@ int main(int argc, char **argv) {
 
     salgachat_pkt srv_pkt = {0};
     if (clients_counter >= CLIENTSMAX) {
-      srv_pkt.flags |= S_UNAVAILABLE;
+      srv_pkt.flags |= SF_UNAVAILABLE;
 
       inet_ntop(AF_INET, &cltaddr.sin_addr, strip, INET_ADDRSTRLEN);
       loguva(INFO,
@@ -207,7 +212,7 @@ int main(int argc, char **argv) {
       continue;
     }
 
-    srv_pkt.flags &= ~S_UNAVAILABLE;
+    srv_pkt.flags &= ~SF_UNAVAILABLE;
 
     write(clientfd, &srv_pkt, sizeof(salgachat_pkt));
     read(clientfd, &pkt, sizeof(salgachat_pkt));
@@ -237,7 +242,7 @@ int main(int argc, char **argv) {
       continue;
     }
 
-    if (pkt.flags & S_CONNECTING) {
+    if (pkt.flags & SF_CONNECTING) {
       alert_all_clients(pkt.user, clientfd, CONNECTING);
     }
   }

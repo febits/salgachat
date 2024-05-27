@@ -11,13 +11,17 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "input.h"
 #include "color.h"
+#include "input.h"
 #include "linkedlist.h"
 #include "salga.h"
 #include "types.h"
 
 #define AVOID_BUSY_WAIT 100000
+
+#define PREFIX_CMD '/'
+#define LIST_CMD "/list"
+#define EXIT_CMD "/exit"
 
 typedef struct {
   salgachat_pkt *pkt;
@@ -38,7 +42,7 @@ void client_sigint_handler(i32 __attribute__((unused)) sig) {
   salgachat_pkt pkt = {0};
 
   strncpy(pkt.user, user, USERSIZE);
-  strncpy(pkt.msg, EXIT_CMD, MSGSIZE);
+  pkt.commands |= SC_EXITCMD;
   write(sockfd, &pkt, sizeof(salgachat_pkt));
 
   finish = true;
@@ -83,8 +87,19 @@ void *send_handler(void *arg) {
     strncpy(data->pkt->msg, input, MSGSIZE);
     memset(input, 0, MSGSIZE);
 
+    if (data->pkt->msg[0] == PREFIX_CMD) {
+      if (strncmp(data->pkt->msg, LIST_CMD, strlen(data->pkt->msg)) == 0) {
+        data->pkt->commands |= SC_LISTCMD;
+      } else if (strncmp(data->pkt->msg, EXIT_CMD, strlen(data->pkt->msg)) ==
+                 0) {
+        data->pkt->commands |= SC_EXITCMD;
+      }
+    }
+
     write(data->sockfd, data->pkt, sizeof(salgachat_pkt));
     add_message(&head, data->pkt->user, data->pkt->msg);
+
+    data->pkt->commands &= ~(SC_LISTCMD | SC_EXITCMD);
   }
 
   pthread_exit(NULL);
@@ -152,7 +167,7 @@ int main(int argc, char **argv) {
   }
 
   remove_newline(pkt.user);
-  pkt.flags |= S_CONNECTING;
+  pkt.flags |= SF_CONNECTING;
 
   strncpy(user, pkt.user, USERSIZE);
 
@@ -161,12 +176,12 @@ int main(int argc, char **argv) {
   }
 
   write(sockfd, &pkt, sizeof(salgachat_pkt));
-  pkt.flags &= ~S_CONNECTING;
+  pkt.flags &= ~SF_CONNECTING;
 
   salgachat_pkt srv_pkt = {0};
   read(sockfd, &srv_pkt, sizeof(salgachat_pkt));
 
-  if (srv_pkt.flags & S_UNAVAILABLE) {
+  if (srv_pkt.flags & SF_UNAVAILABLE) {
     error("client: error: Max clients has been reached\n");
   }
 
